@@ -44,6 +44,7 @@ n = len(datos_planetas)
 
 # Masas reescaladas en masas solares
 m = np.array([p[1] / M_SOLAR for p in datos_planetas])
+m[0] = 20   #MASA DEL SOL REESCALADA PARA TESTEAR EL CASO DE AGUJERO NEGRO
 
 # Posiciones y velocidades en 2D
 r = np.zeros((n, 2))
