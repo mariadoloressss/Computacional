@@ -1,0 +1,91 @@
+nohup: ignoring input
+============================================================
+  SIMULACIÓN ISING-KAWASAKI (con annealing)
+============================================================
+  N_list     = [32, 64, 128]
+  T_array    = [1.5  1.7  1.9  2.   2.05 2.1  2.15 2.2  2.25 2.3  2.35 2.4  2.45 2.5
+ 2.55 2.6  2.7  2.9  3.1  3.3  3.5 ]  (21 puntos)
+  mc_steps   = 30000
+  term_steps = 15000
+  n_realiz   = 3
+  out_dir    = resultados_ising
+
+============================================================
+  ANÁLISIS PARA m0 = 0.0
+============================================================
+
+--- N=32, m0=0.0, 3 realizaciones (annealing) ---
+  Realización 1/3 (semilla=32) completada en 86.9s
+  Realización 2/3 (semilla=1032) completada en 84.5s
+  Realización 3/3 (semilla=2032) completada en 84.4s
+  Tiempo total para N=32: 255.8s
+  -> Tc(N=32): C_v=2.358, chi=2.495
+
+--- N=64, m0=0.0, 3 realizaciones (annealing) ---
+  Realización 1/3 (semilla=64) completada en 342.6s
+  Realización 2/3 (semilla=1064) completada en 341.8s
+  Realización 3/3 (semilla=2064) completada en 343.1s
+  Tiempo total para N=64: 1027.5s
+  -> Tc(N=64): C_v=2.254, chi=2.542
+
+--- N=128, m0=0.0, 3 realizaciones (annealing) ---
+  Realización 1/3 (semilla=128) completada en 1372.3s
+  Realización 2/3 (semilla=1128) completada en 1372.6s
+  Realización 3/3 (semilla=2128) completada en 1371.4s
+  Tiempo total para N=128: 4116.3s
+  -> Tc(N=128): C_v=2.165, chi=2.552
+  [Archivo guardado]: resultados_ising/m_m0_0.0.jpg
+  [Archivo guardado]: resultados_ising/cv_m0_0.0.jpg
+  [Archivo guardado]: resultados_ising/chi_m0_0.0.jpg
+  [Archivo guardado]: resultados_ising/e_m0_0.0.jpg
+  [Archivo guardado]: resultados_ising/extrapolacion_m0_0.0.jpg
+
+  Tc extrapolado (C_v): 2.1129
+  Tc extrapolado (chi): 2.5759
+  [Archivo guardado]: resultados_ising/perfil_densidad_N128_m0_0.0.jpg
+
+  Generando snapshots para N=128 con annealing...
+  [Archivo guardado]: resultados_ising/snapshot_N128_T1.5_m0_0.0.jpg
+  [Archivo guardado]: resultados_ising/snapshot_N128_T2.2_m0_0.0.jpg
+  [Archivo guardado]: resultados_ising/snapshot_N128_T3.0_m0_0.0.jpg
+
+============================================================
+  ANÁLISIS PARA m0 = 0.4
+============================================================
+
+--- N=32, m0=0.4, 3 realizaciones (annealing) ---
+  Realización 1/3 (semilla=32) completada en 50.5s
+  Realización 2/3 (semilla=1032) completada en 50.6s
+  Realización 3/3 (semilla=2032) completada en 50.6s
+  Tiempo total para N=32: 151.7s
+  -> Tc(N=32): C_v=2.242, chi=2.491
+
+--- N=64, m0=0.4, 3 realizaciones (annealing) ---
+  Realización 1/3 (semilla=64) completada en 203.7s
+  Realización 2/3 (semilla=1064) completada en 203.4s
+  Realización 3/3 (semilla=2064) completada en 203.3s
+  Tiempo total para N=64: 610.4s
+  -> Tc(N=64): C_v=2.219, chi=2.630
+
+--- N=128, m0=0.4, 3 realizaciones (annealing) ---
+  Realización 1/3 (semilla=128) completada en 810.2s
+  Realización 2/3 (semilla=1128) completada en 811.6s
+  Realización 3/3 (semilla=2128) completada en 810.7s
+  Tiempo total para N=128: 2432.5s
+  -> Tc(N=128): C_v=2.615, chi=2.605
+  [Archivo guardado]: resultados_ising/m_m0_0.4.jpg
+  [Archivo guardado]: resultados_ising/cv_m0_0.4.jpg
+  [Archivo guardado]: resultados_ising/chi_m0_0.4.jpg
+  [Archivo guardado]: resultados_ising/e_m0_0.4.jpg
+  [Archivo guardado]: resultados_ising/extrapolacion_m0_0.4.jpg
+
+  Tc extrapolado (C_v): 2.6041
+  Tc extrapolado (chi): 2.6740
+  [Archivo guardado]: resultados_ising/perfil_densidad_N128_m0_0.4.jpg
+
+  Generando snapshots para N=128 con annealing...
+  [Archivo guardado]: resultados_ising/snapshot_N128_T1.5_m0_0.4.jpg
+  [Archivo guardado]: resultados_ising/snapshot_N128_T2.2_m0_0.4.jpg
+  [Archivo guardado]: resultados_ising/snapshot_N128_T3.0_m0_0.4.jpg
+
+Simulación completada en 152.1 min
