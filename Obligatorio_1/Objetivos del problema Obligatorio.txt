@@ -1,0 +1,10 @@
+Objetivos del problema Obligatorio del Sistema Solar:
+
+1 - Realizar una animación de las órbitas de los planetas del sistema solar
+
+2 - Comprobar que la energía mecánica total se conserva en promedio (no en cada paso, hay oscilaciones alrededor del valor medio, debidas a errores númericos)
+
+3 - Medir los períodos de los planetas a partir de la simulación de las órbitas y comparar con los periodos reales.
+    Obtener un error relativo del orden de 10^-2
+
+4 - Comprobar que el sistema es estable frente a 'pequeñas' perturbaciones.

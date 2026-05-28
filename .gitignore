@@ -1,0 +1,6 @@
+.venv/
+envprueba/
+__pycache__/
+.ipynb_checkpoints/
+*.pyc
+.vscode/
