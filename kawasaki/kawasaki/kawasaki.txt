@@ -1,0 +1,272 @@
+import numpy as np
+import numba as nb
+import matplotlib.pyplot as plt
+
+# ==========================================
+# BLOQUE 1: MOTOR DE SIMULACIÓN (JIT)
+# ==========================================
+
+@nb.njit
+def init_lattice(N, m0):
+    lattice = np.zeros((N, N), dtype=np.int8)
+    lattice[0, :] = -1
+    lattice[N-1, :] = 1
+    
+    N_active = (N - 2) * N
+    num_up = int(N_active * (1 + m0) / 2)
+    
+    spins = np.ones(N_active, dtype=np.int8)
+    spins[num_up:] = -1
+    np.random.shuffle(spins)
+    
+    idx = 0
+    for i in range(1, N - 1):
+        for j in range(N):
+            lattice[i, j] = spins[idx]
+            idx += 1
+            
+    return lattice
+
+@nb.njit
+def calculate_total_energy(lattice):
+    N = lattice.shape[0]
+    E = 0.0
+    for i in range(1, N - 1):
+        for j in range(N):
+            S = lattice[i, j]
+            right = lattice[i, (j + 1) % N]
+            down = lattice[i + 1, j]
+            E += -S * right
+            if i <= N - 2:
+                E += -S * down
+    
+    for j in range(N):
+        E += -lattice[1, j] * lattice[0, j]
+        
+    return E
+
+@nb.njit
+def mcmc_step(lattice, E, T, num_attempts):
+    N = lattice.shape[0]
+    beta = 1.0 / T
+    
+    for _ in range(num_attempts):
+        i1 = np.random.randint(1, N - 1)
+        j1 = np.random.randint(0, N)
+        
+        valid_neighbor = False
+        while not valid_neighbor:
+            dir = np.random.randint(0, 4)
+            if dir == 0:
+                i2, j2 = i1 - 1, j1
+            elif dir == 1:
+                i2, j2 = i1, (j1 + 1) % N
+            elif dir == 2:
+                i2, j2 = i1 + 1, j1
+            else:
+                i2, j2 = i1, (j1 - 1) % N
+                
+            if 1 <= i2 < N - 1:
+                valid_neighbor = True
+                
+        s1 = lattice[i1, j1]
+        s2 = lattice[i2, j2]
+        
+        if s1 == s2:
+            continue
+            
+        sum1 = 0
+        if (i1-1, j1) != (i2, j2): sum1 += lattice[i1-1, j1]
+        if (i1+1, j1) != (i2, j2): sum1 += lattice[i1+1, j1]
+        if (i1, (j1-1)%N) != (i2, j2): sum1 += lattice[i1, (j1-1)%N]
+        if (i1, (j1+1)%N) != (i2, j2): sum1 += lattice[i1, (j1+1)%N]
+            
+        sum2 = 0
+        if (i2-1, j2) != (i1, j1): sum2 += lattice[i2-1, j2]
+        if (i2+1, j2) != (i1, j1): sum2 += lattice[i2+1, j2]
+        if (i2, (j2-1)%N) != (i1, j1): sum2 += lattice[i2, (j2-1)%N]
+        if (i2, (j2+1)%N) != (i1, j1): sum2 += lattice[i2, (j2+1)%N]
+            
+        dE = 2 * s1 * sum1 + 2 * s2 * sum2
+        
+        if dE <= 0 or np.random.rand() < np.exp(-beta * dE):
+            lattice[i1, j1] = s2
+            lattice[i2, j2] = s1
+            E += dE
+            
+    return E
+
+
+# ==========================================
+# BLOQUE 2: ORQUESTADOR Y ANÁLISIS
+# ==========================================
+
+def run_simulation(N, m0, T_array, target_T_snaps, mc_steps=50000, term_steps=3000):
+    N_active = (N - 2) * N
+    x_fraction = (1 + m0) / 2
+    split_idx = int(1 + (N - 2) * (1 - x_fraction))
+    
+    E_avg_arr, C_v_arr = [], []
+    M_bot_avg_arr, Chi_bot_arr = [], []
+    rho_y_list = []
+    snapshots = {}
+    
+    for T in T_array:
+        lattice = init_lattice(N, m0)
+        E = calculate_total_energy(lattice)
+        
+        # Termalización
+        for _ in range(term_steps):
+            E = mcmc_step(lattice, E, T, N_active)
+            
+        E_sum, E_sq_sum = 0.0, 0.0
+        M_bot_sum, M_bot_sq_sum = 0.0, 0.0
+        rho_y_sum = np.zeros(N)
+        
+        # Medidas
+        for _ in range(mc_steps):
+            E = mcmc_step(lattice, E, T, N_active)
+            
+            E_sum += E
+            E_sq_sum += E**2
+            
+            M_bot = np.sum(lattice[split_idx:N-1, :])
+            M_bot_sum += M_bot
+            M_bot_sq_sum += M_bot**2
+            
+            rho_y_sum += np.mean((lattice + 1) / 2, axis=1)
+
+        # Guardar snapshot si la T actual está cerca de las objetivo
+        for target_T in target_T_snaps:
+            if abs(T - target_T) < 0.05 and target_T not in snapshots:
+                snapshots[target_T] = np.copy(lattice)
+
+        E_mean = E_sum / mc_steps
+        E_sq_mean = E_sq_sum / mc_steps
+        M_bot_mean = M_bot_sum / mc_steps
+        M_bot_sq_mean = M_bot_sq_sum / mc_steps
+        
+        cv = (E_sq_mean - E_mean**2) / ( (N**2) * (T**2) )
+        chi = (M_bot_sq_mean - M_bot_mean**2) / ( (N**2) * T )
+        
+        E_avg_arr.append(E_mean / (N**2))
+        C_v_arr.append(cv)
+        M_bot_avg_arr.append(M_bot_mean / ((N - 1 - split_idx) * N))
+        Chi_bot_arr.append(chi)
+        rho_y_list.append(rho_y_sum / mc_steps)
+        
+        print(f"  -> T={T:.2f} completada.")
+        
+    return T_array, E_avg_arr, C_v_arr, M_bot_avg_arr, Chi_bot_arr, rho_y_list, snapshots
+
+def plot_extrapolation(N_list, Tc_cv, Tc_chi):
+    """Guarda la regresión lineal para extrapolar Tc en una imagen independiente."""
+    inv_N = 1.0 / np.array(N_list)
+    fit_cv = np.polyfit(inv_N, Tc_cv, 1)
+    fit_chi = np.polyfit(inv_N, Tc_chi, 1)
+    inv_N_line = np.linspace(0, max(inv_N)*1.1, 50)
+    
+    plt.figure(figsize=(8, 5))
+    plt.plot(inv_N, Tc_cv, 'bo', label='Picos de $C_v$')
+    plt.plot(inv_N_line, np.polyval(fit_cv, inv_N_line), 'b--', label=f'Fit $C_v$: $T_c(\\infty)$={fit_cv[1]:.2f}')
+    
+    plt.plot(inv_N, Tc_chi, 'ro', label=r'Picos de $\chi$')
+    plt.plot(inv_N_line, np.polyval(fit_chi, inv_N_line), 'r--', label=f'Fit $\\chi$: $T_c(\\infty)$={fit_chi[1]:.2f}')
+    
+    plt.title(r'Extrapolación de $T_c$ en el límite termodinámico ($1/N \to 0$)')
+    plt.xlabel('1 / N')
+    plt.ylabel('$T_c(N)$')
+    plt.legend()
+    plt.grid(True)
+    
+    filename = "extrapolacion_limite_termodinamico.jpg"
+    plt.savefig(filename, dpi=300, bbox_inches='tight')
+    plt.close()
+    print(f"  [Archivo guardado]: {filename}")
+
+
+def main_analysis(m0, N_list, T_range, target_T_snaps):
+    print(f"\n========================================")
+    print(f" INICIANDO ANÁLISIS PARA m0 = {m0}")
+    print(f"========================================")
+    
+    results = {}
+    Tc_cv_list = []
+    Tc_chi_list = []
+    
+    for N in N_list:
+        print(f"\n--- Simulando red N={N} ---")
+        T, E, Cv, M, Chi, rho, snaps = run_simulation(N, m0, T_range, target_T_snaps)
+        results[N] = {'T': T, 'E': E, 'Cv': Cv, 'M': M, 'Chi': Chi, 'rho': rho, 'snaps': snaps}
+        
+        Tc_cv_list.append(T[np.argmax(Cv)])
+        Tc_chi_list.append(T[np.argmax(Chi)])
+
+    # --- GUARDAR CADA MÉTRICA TERMODINÁMICA INDEPENDIENTEMENTE ---
+    metrics = [
+        ('M', 'Magnetización por Dominio', '<m>', f'magnetizacion_m0_{m0}.jpg'),
+        ('Cv', 'Calor Específico ($C_v$)', '$C_v$', f'calor_especifico_m0_{m0}.jpg'),
+        ('Chi', r'Susceptibilidad ($\chi$)', r'$\chi$', f'susceptibilidad_m0_{m0}.jpg'),
+        ('E', 'Energía por Partícula', '$<E>/N^2$', f'energia_m0_{m0}.jpg')
+    ]
+    
+    for key, title, ylabel, filename in metrics:
+        plt.figure(figsize=(8, 5))
+        for N in N_list:
+            plt.plot(results[N]['T'], results[N][key], 'o-', label=f'N={N}')
+        plt.title(f"{title} (m0 = {m0})")
+        plt.xlabel('T')
+        plt.ylabel(ylabel)
+        plt.legend()
+        plt.grid(True)
+        plt.savefig(filename, dpi=300, bbox_inches='tight')
+        plt.close()
+        print(f"  [Archivo guardado]: {filename}")
+
+    # --- GRÁFICAS EXCLUSIVAS DEL CASO SIMÉTRICO (m0=0) ---
+    if m0 == 0.0:
+        # 1. Extrapolación termodinámica
+        plot_extrapolation(N_list, Tc_cv_list, Tc_chi_list)
+        
+        # 2. Perfil de densidad rho(y) para el tamaño de red más grande
+        N_max = N_list[-1]
+        plt.figure(figsize=(8, 5))
+        for i, T_val in enumerate(results[N_max]['T']):
+            if i % 3 == 0:  # Pintar una de cada tres temperaturas para claridad
+                plt.plot(range(N_max), results[N_max]['rho'][i], label=f'T={T_val:.2f}')
+        plt.title(f'Perfil de densidad de partículas $\\rho(y)$ (N={N_max})')
+        plt.xlabel('y (Fila)')
+        plt.ylabel(r'$\rho(y)$')
+        plt.legend(bbox_to_anchor=(1.05, 1), loc='upper left')
+        plt.grid(True)
+        
+        filename_rho = f"perfil_densidad_y_N{N_max}.jpg"
+        plt.savefig(filename_rho, dpi=300, bbox_inches='tight')
+        plt.close()
+        print(f"  [Archivo guardado]: {filename_rho}")
+
+        # 3. Guardar fotogramas de dominios (Snapshots) como imágenes independientes
+        snaps = results[N_max]['snaps']
+        for T_snap, matrix in snaps.items():
+            plt.figure(figsize=(6, 6))
+            plt.imshow(matrix, cmap='coolwarm', interpolation='nearest')
+            plt.title(f'Fotograma de Configuración a T $\\approx$ {T_snap:.2f} (N={N_max})')
+            plt.axis('off')
+            
+            filename_snap = f"snapshot_N{N_max}_T_{T_snap:.1f}.jpg"
+            plt.savefig(filename_snap, dpi=300, bbox_inches='tight')
+            plt.close()
+            print(f"  [Archivo guardado]: {filename_snap}")
+
+# --- EJECUCIÓN PRINCIPAL ---
+if __name__ == "__main__":
+    # Parámetros del experimento
+    N_list = [32, 64, 128] 
+    T_range = np.linspace(1.5, 3.5, 20)
+    target_T_snaps = [1.5, 2.2, 3.0] 
+    
+    # Lanzar análisis automático para ambas fases
+    main_analysis(m0=0.0, N_list=N_list, T_range=T_range, target_T_snaps=target_T_snaps)
+    main_analysis(m0=0.4, N_list=N_list, T_range=T_range, target_T_snaps=target_T_snaps)
+    
+    print("\n¡Simulación completada con éxito! Todos los ficheros .jpg están listos en tu directorio.")
